@@ -12,11 +12,11 @@ import kotlin.reflect.KClass
  *
  * @param T the type of the linked table
  */
-class LazyId<T: Table> private constructor(
+class LazyId<T: Table?> private constructor(
     /**
      * The [KClass] of the linked table.
      */
-    val type: KClass<T>,
+    val type: KClass<out Table>?,
     /**
      * The id of the record in the linked table.
      */
@@ -45,13 +45,14 @@ class LazyId<T: Table> private constructor(
      * @throws IllegalArgumentException if the value is not loaded yet and the table is not defined in the database
      */
     fun get(): T {
+        if (type == null) return null as T
         if (!isLoaded) {
             // Checks that the state of the LazyId is valid
             manager ?: throw IllegalArgumentException("No manager available")
             id ?: throw IllegalArgumentException("No id available")
 
             // Get the value and sets the flag to "loaded"
-            value = manager.findK(id, type)
+            value = manager.findK(id, type) as T
             isLoaded = true
         }
         // Returns the value or throws an exception if the value has not been found
@@ -75,7 +76,7 @@ class LazyId<T: Table> private constructor(
          * @return a [LazyId] instance that still needs to be evaluated
          */
         fun <T : Table> lazyK(id: Int, manager: RacoonManager, type: KClass<T>) =
-            LazyId(type, id, manager, null, false)
+            LazyId<T>(type, id, manager, null, false)
 
         /**
          * Behaves like [definedK] but the type of the linked table is passed as a reified type parameter.
@@ -93,5 +94,7 @@ class LazyId<T: Table> private constructor(
          */
         fun <T : Table> definedK(value: T, type: KClass<T>) =
             LazyId(type, value.id, null, value, true)
+
+        fun <T : Table?> empty() = LazyId<T>(null, null, null, null, true)
     }
 }
